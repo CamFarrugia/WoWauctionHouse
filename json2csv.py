@@ -3,6 +3,7 @@ import json
 import csv
 import gzip
 import shelve
+import os
 
 
 def convert(jsonfile, itemdb):
@@ -19,27 +20,32 @@ def convert(jsonfile, itemdb):
 		itemdb = itemdb[:-4]
 
 	with fo(jsonfile, 'r') as f:
-		data = json.loads(f.read())
+		for line in f:
+			data = json.loads(line)
+			fields = ['id', 'item_name', 'item_type', 'time_left', 'quantity', 'buyout', 'unit_price']
+			with shelve.open(itemdb) as item_data:
+				for auction in data:
+					item_id = str(auction['item']['id'])
+					del auction['item']['id']
+					auction['item_id'] = item_id
+					auction['item_name'] = item_data[item_id]['name']
+					if '#text' in item_data[item_id]['class']:
+						auction['item_type'] = item_data[item_id]['class']['#text']
+					else:
+						auction['item_type'] = item_data[item_id]['class']['@id']
+					for k in auction:
+						if k not in fields:
+							fields.append(k)
 
-	fields = ['id', 'item_name', 'item_type', 'time_left', 'quantity', 'buyout', 'unit_price']
-	with shelve.open(itemdb) as item_data:
-		for auction in data:
-			item_id = str(auction['item']['id'])
-			del auction['item']['id']
-			auction['item_id'] = item_id
-			auction['item_name'] = item_data[item_id]['name']
-			if '#text' in item_data[item_id]['class']:
-				auction['item_type'] = item_data[item_id]['class']['#text']
+			if os.path.exists(newname):
+				with open(newname, 'a', newline='') as f:
+					writer = csv.DictWriter(f, fields)
+					writer.writerows(data)
 			else:
-				auction['item_type'] = item_data[item_id]['class']['@id']
-			for k in auction:
-				if k not in fields:
-					fields.append(k)
-
-	with open(newname, 'w', newline='') as f:
-		writer = csv.DictWriter(f, fields)
-		writer.writeheader()
-		writer.writerows(data)
+				with open(newname, 'a', newline='') as f:
+					writer = csv.DictWriter(f, fields)
+					writer.writeheader()
+					writer.writerows(data)
 
 
 def _parse_args():

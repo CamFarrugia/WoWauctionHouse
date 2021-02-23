@@ -81,8 +81,10 @@ def main():
 		data = get_region_ah_data(token, server)
 		data = enrich_data(data, args.output_dir)
 
-		with gzip.open(os.path.join(args.output_dir, datetime.datetime.now().strftime(server + '_US-%Y-%m-%d-%H-%M.json.gz')), 'wb', 9) as f:
+		# with gzip.open(os.path.join(args.output_dir, datetime.datetime.now().strftime(server + '_US-%Y-%m-%d-%H-%M.json.gz')), 'wb', 9) as f:
+		with gzip.open(os.path.join(args.output_dir, server + '.json.gz'), 'ab', 9) as f:
 			f.write(json.dumps(data).encode('utf8'))
+			f.write(b"\n")
 
 
 if __name__ == '__main__':
