@@ -1,0 +1,146 @@
+---
+title: "Master's Project"
+author: "Cameron Farrugia"
+date: "2/25/2021"
+output: word_document
+---
+
+
+## Data Exploration
+
+```{r}
+library(dplyr)
+library(tidyr)
+library("Hmisc")
+library(ggplot2)
+```
+
+
+```{r}
+storm=read.csv(file="C:/Users/camer/Desktop/Master's Project/Stormrage_US-2021-02-21-05-16.csv")
+str(storm)
+
+```
+
+
+Looks like we have problems with buyout and bid columns, This isn't surprising because some auctions don't sell or don't have a buyout price, these are options with the auction house feature much like eBay.
+
+So now we need to change the NA's to none because the data isn't missing it is just more accurately none.
+
+```{r}
+temp=storm
+buyout=temp[6]
+
+temp %>% dplyr::mutate(temp=replace_na(buyout, "none"))
+bid=temp[11]
+
+temp %>% dplyr::mutate(bid=replace_na(bid, "none"))
+str(bid)
+```
+
+Looks like it has worked well, now to put it back into the oringal data frame
+
+```{r}
+storm$bid=temp$bid
+storm$buyout=temp$buyout
+str(storm)
+```
+
+
+```{r}
+summary(storm)
+```
+
+Looking at something like pet cage's isn't a clear indicator for prices because there can be many different pets in the cages, So for us to look at specific pets we will need to use the item id's to determine the different pets. We will do that later.
+
+For now lets look at the next most common item, the hexweave bag.
+
+```{r}
+sum(storm$item_name=="Hexweave Bag")
+barplot(table(storm$item_name))
+
+
+```
+
+
+I want to be able to compare servers so im including a less populated server to see differences
+```{r}
+norg=read.csv(file="C:/Users/camer/Desktop/Master's Project/Norgannon_US-2021-02-21-05-16.csv")
+bHand=read.csv(file="C:/Users/camer/Desktop/Master's Project/blackhand_smool.csv")
+
+```
+
+```{r}
+summary(norg)
+summary(bHand)
+```
+
+```{r}
+stormbox<-ggplot(storm, aes(x=time_left, fill=time_left))+geom_bar()
+norgbox<-ggplot(norg, aes(x=time_left, fill=time_left))+geom_bar()
+bHandbox<-ggplot(bHand, aes(x=time_left, fill=time_left))+geom_bar()
+print(stormbox + labs(title="Stormrage", x="Time Left", y="Count"))
+print(norgbox + labs(title="Norgannon", x="Time Left", y="Count"))
+print(bHandbox + labs(title="Blackhand", x="Time Left", y="Count"))
+```
+
+Short - Less than 30 minutes.
+Medium - Between 30 minutes and 2 hours.
+Long - Between 2 hours and 12 hours.
+Very Long - Between 12 hours and 48 hours.
+
+In world of warcraft there is a term called cancel scaning and the amount of auctions that are very long or long are much higher because people will cancel their auctions and repost them because people will undercut them and make it so their product wont be sold. The population of these servers are pretty similar and the ratio's of the barplots are very similar. Since both of these servers are pretty popular I will look into a server that also has a small population to see if there is any difference.
+
+```{r}
+barplot(table(storm$item_type))
+barplot(table(norg$item_type))
+barplot(table(bHand$item_type))
+```
+
+There is a pretty clear issue, I dont know what category 12, 17 and 8 are, so that will need to be explored. 17 are Pet Cages, 8 are belt buckles and 12 are miscellaneous. I found this in the Excel document looking at each of the items types. I find it easiest to change these in excel and bring it back into R after.
+
+
+
+
+```{r}
+storm2=read.csv(file="C:/Users/camer/Desktop/Master's Project/Stormrage_itemfix.csv")
+
+```
+
+```{r}
+ggplot(storm2, aes(x=item_type, fill=item_type))+geom_bar()
+```
+
+This looks a lot better, there are no item types out of place.
+
+```{r}
+
+mean(storm2$buyout[storm2$item_name=="Hexweave Bag"])
+min(storm2$buyout[storm2$item_name=="Hexweave Bag"])
+max(storm2$buyout[storm2$item_name=="Hexweave Bag"])
+```
+
+In wow money works as gold silver and copper, so if we take the response for the minimum 8730000 then that would translate to 873 gold 0 silver and 0 copper. Esentually you move the decimal place four places to the left. Gold would be the equvalant of dollars and silver the cents. Copper is so insignifigant that we don't need to worry about it really.
+
+```{r}
+value<-1613902316
+as.Date(as.POSIXct(value, origin="1970-01-01"))
+```
+
+So the ts column of the data is a timestamp. It is an epoch time, so this converts it into the actual date.
+
+```{r}
+meanType<-with(storm2, tapply(buyout, item_type, mean, na.rm=TRUE))
+mt<-data.frame(meanType)
+barplot(meanType, col=rainbow(12), legend.text = TRUE, horiz=TRUE)
+class(meanType)
+class(mt)
+mt
+```
+
+```{r}
+mt2<-data.frame(item_type=c("Armor", "Consumables", "Containers", "Gems", "Miscellaneous", "Pet Cage", "Recipes", "Trade Goods", "Weapons"), meanBuyout=c(15996.4915, 30732.6203, 3010.4649, 31398.3711, 40691.6195, 12415.6236, 17736.1921, 4603.1804, 20216.6080))
+
+mtbar<-ggplot(mt2, aes(x=item_type, y=meanBuyout, fill=item_type))+geom_bar(stat="identity")
+print(mtbar + labs(title="Mean pricing based on Item Type", x="Item Type", y="Mean Buyout Price"))
+```
